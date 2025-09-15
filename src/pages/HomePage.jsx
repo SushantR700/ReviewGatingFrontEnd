@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
 import BusinessCard from '../components/business/BusinessCard';
@@ -10,11 +10,7 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const location = useLocation();
 
-  useEffect(() => {
-    fetchBusinesses();
-  }, [location.search]);
-
-  const fetchBusinesses = async () => {
+  const fetchBusinesses = useCallback(async () => {
     try {
       const urlParams = new URLSearchParams(location.search);
       const searchTerm = urlParams.get('search');
@@ -32,7 +28,11 @@ const HomePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [location.search]);
+
+  useEffect(() => {
+    fetchBusinesses();
+  }, [fetchBusinesses]);
 
   if (loading) {
     return (

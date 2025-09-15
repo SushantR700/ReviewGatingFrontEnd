@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
 import StarRating from '../components/common/StarRating';
@@ -18,11 +18,7 @@ const BusinessDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [showReviewForm, setShowReviewForm] = useState(false);
 
-  useEffect(() => {
-    fetchBusinessData();
-  }, [id, user]);
-
-  const fetchBusinessData = async () => {
+  const fetchBusinessData = useCallback(async () => {
     try {
       // Fetch business details
       const businessResponse = await businessService.getBusinessById(id);
@@ -42,7 +38,11 @@ const BusinessDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, user]);
+
+  useEffect(() => {
+    fetchBusinessData();
+  }, [fetchBusinessData]);
 
   const handleReviewSubmitted = () => {
     setShowReviewForm(false);
