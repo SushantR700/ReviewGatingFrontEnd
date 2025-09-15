@@ -3,7 +3,7 @@ import StarRating from '../common/StarRating';
 import FeedbackForm from './FeedbackForm';
 import { reviewService } from '../../services/reviewService';
 
-const ReviewForm = ({ businessId, onReviewSubmitted }) => {
+const ReviewForm = ({ businessId, business, onReviewSubmitted }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -22,14 +22,22 @@ const ReviewForm = ({ businessId, onReviewSubmitted }) => {
       const response = await reviewService.createReview(businessId, { rating, comment });
       setReviewResult(response.data);
       
-      if (response.data.shouldRedirectToGoogle) {
+      // FIXED LOGIC: High ratings (4-5) should redirect to Google
+      if (rating >= 4) {
         alert('Thank you for your positive review! You will be redirected to leave a Google review.');
-        window.open('https://www.google.com/search?q=leave+review', '_blank');
-      }
-      
-      if (response.data.shouldShowFeedbackForm) {
+        
+        // Use business Google Review URL if available, otherwise generic Google search
+        const googleUrl = business?.googleReviewUrl || 
+                         `https://www.google.com/search?q=${encodeURIComponent(business?.businessName + ' review')}`;
+        
+        window.open(googleUrl, '_blank');
+        onReviewSubmitted();
+      } 
+      // Low ratings (1-3) should show feedback form
+      else if (rating <= 3) {
         setShowFeedbackForm(true);
       } else {
+        // Just in case, default behavior
         onReviewSubmitted();
       }
     } catch (error) {
@@ -62,6 +70,11 @@ const ReviewForm = ({ businessId, onReviewSubmitted }) => {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Your Rating</label>
           <StarRating rating={rating} onRatingChange={setRating} size={30} />
+          {rating > 0 && (
+            <p className="text-sm text-gray-600 mt-1">
+              {rating >= 4 ? 'You\'ll be redirected to leave a Google review' : 'We\'d love your feedback to improve'}
+            </p>
+          )}
         </div>
 
         <div>

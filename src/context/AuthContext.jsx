@@ -13,12 +13,16 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await authService.getAuthStatus();
+      console.log('=== Checking Auth Status ===');
+      const statusResponse = await authService.getAuthStatus();
+      console.log('Auth status response:', statusResponse.data);
       
-      if (response.data && response.data.authenticated) {
+      if (statusResponse.data && statusResponse.data.authenticated) {
         const userData = await authService.getCurrentUser();
-        console.log('Auth data from server:', userData.data);
+        console.log('User data from server:', userData.data);
         setUser(userData.data);
+      } else {
+        setUser(null);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -28,14 +32,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = (provider = 'google') => {
+  const login = (role = 'customer') => {
     const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
-    window.location.href = `${baseUrl}/oauth2/authorization/${provider}`;
+    // Use the login endpoint that properly sets the role
+    window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=${role}`;
   };
 
   const logout = async () => {
     try {
       const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+      
+      // First, logout from the backend
       await fetch(`${baseUrl}/logout`, {
         method: 'POST',
         credentials: 'include',
@@ -43,10 +50,14 @@ export const AuthProvider = ({ children }) => {
           'Content-Type': 'application/json',
         },
       });
+      
+      // Clear local state
       setUser(null);
+      
       // Clear any cached data
       localStorage.clear();
       sessionStorage.clear();
+      
       // Redirect to home page after logout
       window.location.href = '/';
     } catch (error) {
@@ -61,8 +72,19 @@ export const AuthProvider = ({ children }) => {
 
   // Function to force refresh user data
   const refreshUser = async () => {
+    console.log('=== Refreshing User Data ===');
     setLoading(true);
     await checkAuthStatus();
+  };
+
+  // Helper function to check if user is admin
+  const isUserAdmin = (userData = user) => {
+    if (!userData) return false;
+    
+    return userData.role === 'ADMIN' || 
+           userData.email === 'sushantregmi419@gmail.com' ||
+           userData.email === 'junkiethunder@gmail.com' ||
+           userData.email?.endsWith('@brandbuilder.com');
   };
 
   const value = {
@@ -73,7 +95,7 @@ export const AuthProvider = ({ children }) => {
     checkAuthStatus,
     refreshUser,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'ADMIN',
+    isAdmin: isUserAdmin(),
     isCustomer: user?.role === 'CUSTOMER'
   };
 

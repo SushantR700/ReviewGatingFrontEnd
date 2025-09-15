@@ -7,7 +7,7 @@ import { businessService } from '../services/businessService';
 import { useAuth } from '../context/AuthContext';
 
 const AdminPortal = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isAdmin } = useAuth();
   const [businesses, setBusinesses] = useState([]);
   const [showBusinessForm, setShowBusinessForm] = useState(false);
   const [editingBusiness, setEditingBusiness] = useState(null);
@@ -16,20 +16,26 @@ const AdminPortal = () => {
 
   useEffect(() => {
     console.log('AdminPortal mounted, user:', user);
+    console.log('Is admin:', isAdmin);
     fetchMyBusinesses();
   }, []);
 
   const fetchMyBusinesses = async () => {
     try {
       setError(null);
+      setLoading(true);
       console.log('Fetching businesses...');
+      
       const response = await businessService.getMyBusinesses();
       console.log('Businesses response:', response);
       setBusinesses(response.data || []);
     } catch (error) {
       console.error('Failed to fetch businesses:', error);
+      
       if (error.response?.status === 403) {
-        setError('Access denied. Your role might not be updated yet. Try refreshing your session or logging out and back in.');
+        setError('Access denied. You need to be logged in as a business owner to access this area.');
+      } else if (error.response?.status === 401) {
+        setError('Please log in as a business owner to access this area.');
       } else {
         setError('Failed to load businesses: ' + (error.response?.data || error.message));
       }
@@ -39,12 +45,18 @@ const AdminPortal = () => {
   };
 
   const handleRefreshSession = async () => {
-    setLoading(true);
-    await refreshUser();
-    // Retry fetching businesses after refresh
-    setTimeout(() => {
-      fetchMyBusinesses();
-    }, 1000);
+    try {
+      setLoading(true);
+      await refreshUser();
+      // Wait a moment for the auth context to update
+      setTimeout(() => {
+        fetchMyBusinesses();
+      }, 1000);
+    } catch (error) {
+      console.error('Error refreshing session:', error);
+      setError('Failed to refresh session');
+      setLoading(false);
+    }
   };
 
   const handleCreateBusiness = async (formData) => {
@@ -92,11 +104,16 @@ const AdminPortal = () => {
     }
   };
 
+  const handleBusinessOwnerLogin = () => {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+    window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=admin`;
+  };
+
   const handleForceLogout = () => {
     // Clear everything and force logout
     localStorage.clear();
     sessionStorage.clear();
-    window.location.href = 'http://localhost:8080/logout';
+    window.location.href = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/logout`;
   };
 
   if (loading) {
@@ -116,7 +133,16 @@ const AdminPortal = () => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-red-800 mb-2">Access Error</h3>
             <p className="text-red-700 mb-4">{error}</p>
-            <div className="flex space-x-4">
+            
+            {/* Debug info for troubleshooting */}
+            <div className="mb-4 p-3 bg-gray-100 rounded text-sm">
+              <p><strong>Current User:</strong> {user?.name || 'Not logged in'}</p>
+              <p><strong>Email:</strong> {user?.email || 'N/A'}</p>
+              <p><strong>Role:</strong> {user?.role || 'N/A'}</p>
+              <p><strong>Is Admin:</strong> {isAdmin ? 'Yes' : 'No'}</p>
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={handleRefreshSession}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
@@ -130,10 +156,16 @@ const AdminPortal = () => {
                 Try Again
               </button>
               <button
+                onClick={handleBusinessOwnerLogin}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+              >
+                Login as Business Owner
+              </button>
+              <button
                 onClick={handleForceLogout}
                 className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
               >
-                Force Logout & Re-login
+                Logout & Try Again
               </button>
             </div>
           </div>
@@ -175,32 +207,13 @@ const AdminPortal = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Debug info */}
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h4 className="font-semibold text-blue-800">Debug Info:</h4>
-          <p className="text-blue-700">User: {user?.name} ({user?.email})</p>
-          <p className="text-blue-700">Role: {user?.role}</p>
-          <p className="text-blue-700">Businesses count: {businesses.length}</p>
-          <div className="mt-2">
-            <button
-              onClick={handleRefreshSession}
-              className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 mr-2"
-            >
-              Refresh Session
-            </button>
-            <button
-              onClick={handleForceLogout}
-              className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
-            >
-              Force Logout
-            </button>
-          </div>
-        </div>
-
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Business Owner Portal</h1>
             <p className="text-gray-600">Manage your business profiles and reviews</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Welcome back, {user?.name} ({user?.role})
+            </p>
           </div>
           <button
             onClick={() => setShowBusinessForm(true)}
@@ -227,26 +240,31 @@ const AdminPortal = () => {
             {businesses.map((business) => (
               <div key={business.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="aspect-w-16 aspect-h-9 bg-gray-200">
-                  {business.imageData ? (
+                  {business.imageName ? (
                     <img
-                      src={businessService.getBusinessImage(business.id)}
+                      src={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/businesses/${business.id}/image`}
                       alt={business.businessName}
                       className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
                     />
-                  ) : (
-                    <div className="w-full h-48 bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                      <span className="text-white text-4xl font-bold">
-                        {business.businessName.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
+                  ) : null}
+                  <div 
+                    className={`w-full h-48 bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center ${business.imageName ? 'hidden' : 'flex'}`}
+                  >
+                    <span className="text-white text-4xl font-bold">
+                      {business.businessName.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
                 </div>
                 <div className="p-4">
                   <h3 className="font-semibold text-lg text-gray-800 mb-2">{business.businessName}</h3>
                   <div className="flex items-center justify-between mb-4">
-                    <StarRating rating={business.averageRating} readOnly />
+                    <StarRating rating={business.averageRating || 0} readOnly />
                     <span className="text-sm text-gray-500">
-                      {business.totalReviews} reviews
+                      {business.totalReviews || 0} reviews
                     </span>
                   </div>
                   <div className="flex space-x-2">

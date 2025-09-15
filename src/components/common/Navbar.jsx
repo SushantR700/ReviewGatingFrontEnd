@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [showLoginDropdown, setShowLoginDropdown] = useState(false);
   const navigate = useNavigate();
@@ -23,12 +23,15 @@ const Navbar = () => {
     window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=${role}`;
   };
 
-  // Check if user should have admin access (by role or email)
-  const isAdmin = user && (
-    user.role === 'ADMIN' || 
-    user.email === 'sushantregmi419@gmail.com' ||
-    user.email?.endsWith('@brandbuilder.com')
-  );
+  // Display role properly
+  const getRoleDisplay = () => {
+    if (!user) return '';
+    
+    if (isAdmin) {
+      return 'Business Owner';
+    }
+    return user.role === 'CUSTOMER' ? 'Customer' : user.role;
+  };
 
   return (
     <nav className="bg-white shadow-lg border-b">
@@ -64,10 +67,10 @@ const Navbar = () => {
           <div className="flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-4">
-                <span className="text-gray-700">Hi, {user.name}</span>
-                <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                  {user.role}
-                </span>
+                <div className="text-right">
+                  <div className="text-gray-700 font-medium">Hi, {user.name}</div>
+                  <div className="text-xs text-gray-500">{getRoleDisplay()}</div>
+                </div>
                 {isAdmin && (
                   <Link
                     to="/admin"
@@ -78,7 +81,7 @@ const Navbar = () => {
                 )}
                 <button
                   onClick={logout}
-                  className="text-gray-600 hover:text-gray-800 transition-colors"
+                  className="text-gray-600 hover:text-gray-800 transition-colors px-3 py-2 rounded-lg hover:bg-gray-100"
                 >
                   Logout
                 </button>
