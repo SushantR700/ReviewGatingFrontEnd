@@ -49,6 +49,11 @@ const BusinessDetailPage = () => {
     fetchBusinessData(); // Refresh data
   };
 
+  const handleLogin = () => {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+    window.location.href = `${baseUrl}/oauth2/authorization/google`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -201,7 +206,7 @@ const BusinessDetailPage = () => {
                 <h3 className="text-lg font-semibold mb-4">Leave a Review</h3>
                 <p className="text-gray-600 mb-4">Please log in to leave a review for this business.</p>
                 <button
-                  onClick={() => window.location.href = `${process.env.REACT_APP_API_BASE_URL}/oauth2/authorization/google`}
+                  onClick={handleLogin}
                   className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   Login to Review

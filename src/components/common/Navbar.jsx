@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const Navbar = () => {
-  const { user, login, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [showLoginDropdown, setShowLoginDropdown] = useState(false);
   const navigate = useNavigate();
@@ -19,7 +19,8 @@ const Navbar = () => {
 
   const handleLogin = (role = 'customer') => {
     const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
-    window.location.href = `${baseUrl}/oauth2/authorization/google?role=${role}`;
+    // Use the login endpoint that properly sets the role
+    window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=${role}`;
   };
 
   // Check if user should have admin access (by role or email)
@@ -64,6 +65,9 @@ const Navbar = () => {
             {user ? (
               <div className="flex items-center space-x-4">
                 <span className="text-gray-700">Hi, {user.name}</span>
+                <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                  {user.role}
+                </span>
                 {isAdmin && (
                   <Link
                     to="/admin"
