@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 const Navbar = () => {
   const { user, login, logout } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [showLoginDropdown, setShowLoginDropdown] = useState(false);
   const navigate = useNavigate();
 
   const handleSearch = (e) => {
@@ -15,6 +16,18 @@ const Navbar = () => {
       navigate('/');
     }
   };
+
+  const handleLogin = (role = 'customer') => {
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+    window.location.href = `${baseUrl}/oauth2/authorization/google?role=${role}`;
+  };
+
+  // Check if user should have admin access (by role or email)
+  const isAdmin = user && (
+    user.role === 'ADMIN' || 
+    user.email === 'sushantregmi419@gmail.com' ||
+    user.email?.endsWith('@brandbuilder.com')
+  );
 
   return (
     <nav className="bg-white shadow-lg border-b">
@@ -51,12 +64,12 @@ const Navbar = () => {
             {user ? (
               <div className="flex items-center space-x-4">
                 <span className="text-gray-700">Hi, {user.name}</span>
-                {user.role === 'ADMIN' && (
+                {isAdmin && (
                   <Link
                     to="/admin"
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    Admin Portal
+                    Business Portal
                   </Link>
                 )}
                 <button
@@ -67,13 +80,47 @@ const Navbar = () => {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center space-x-2">
+              <div className="relative">
                 <button
-                  onClick={() => login('google')}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={() => setShowLoginDropdown(!showLoginDropdown)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-1"
                 >
-                  Login
+                  <span>Login</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
+                
+                {showLoginDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border">
+                    <button
+                      onClick={() => {
+                        setShowLoginDropdown(false);
+                        handleLogin('customer');
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Login as Customer
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowLoginDropdown(false);
+                        handleLogin('admin');
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Login as Business Owner
+                    </button>
+                  </div>
+                )}
+                
+                {/* Backdrop to close dropdown */}
+                {showLoginDropdown && (
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowLoginDropdown(false)}
+                  ></div>
+                )}
               </div>
             )}
           </div>

@@ -15,28 +15,54 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authService.getAuthStatus();
       
-      if (response.authenticated) {
+      if (response.data && response.data.authenticated) {
         const userData = await authService.getCurrentUser();
-        setUser(userData);
+        console.log('Auth data from server:', userData.data);
+        setUser(userData.data);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+      setUser(null);
     } finally {
       setLoading(false);
     }
   };
 
   const login = (provider = 'google') => {
-    window.location.href = `${process.env.REACT_APP_API_BASE_URL}/oauth2/authorization/${provider}`;
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+    window.location.href = `${baseUrl}/oauth2/authorization/${provider}`;
   };
 
   const logout = async () => {
     try {
-      await authService.logout();
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+      await fetch(`${baseUrl}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       setUser(null);
+      // Clear any cached data
+      localStorage.clear();
+      sessionStorage.clear();
+      // Redirect to home page after logout
+      window.location.href = '/';
     } catch (error) {
       console.error('Logout failed:', error);
+      // Even if logout fails on server, clear local state
+      setUser(null);
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/';
     }
+  };
+
+  // Function to force refresh user data
+  const refreshUser = async () => {
+    setLoading(true);
+    await checkAuthStatus();
   };
 
   const value = {
@@ -45,6 +71,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     checkAuthStatus,
+    refreshUser,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'ADMIN',
     isCustomer: user?.role === 'CUSTOMER'

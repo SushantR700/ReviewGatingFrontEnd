@@ -14,7 +14,22 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     return <Navigate to="/" replace />;
   }
 
-  if (requiredRole && user.role !== requiredRole) {
+  // Check if user has required role OR is an admin by email
+  const isAuthorized = () => {
+    if (!requiredRole) return true; // No specific role required
+    
+    if (requiredRole === 'ADMIN') {
+      return (
+        user.role === 'ADMIN' || 
+        user.email === 'sushantregmi419@gmail.com' ||
+        user.email?.endsWith('@brandbuilder.com')
+      );
+    }
+    
+    return user.role === requiredRole;
+  };
+
+  if (!isAuthorized()) {
     return <Navigate to="/" replace />;
   }
 
