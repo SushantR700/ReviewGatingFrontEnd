@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 const Navbar = () => {
   const { user, logout, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [showLoginDropdown, setShowLoginDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const navigate = useNavigate();
@@ -20,12 +19,9 @@ const Navbar = () => {
     setShowMobileSearch(false);
   };
 
-  const handleLogin = (role = 'customer') => {
+  const handleBusinessOwnerLogin = () => {
     const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
-    const currentUrl = window.location.href;
-    const returnUrl = encodeURIComponent(currentUrl);
-    window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=${role}&returnUrl=${returnUrl}`;
-    setShowLoginDropdown(false);
+    window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=admin`;
     setShowMobileMenu(false);
   };
 
@@ -40,19 +36,9 @@ const Navbar = () => {
     setShowMobileMenu(false);
   };
 
-  const getRoleDisplay = () => {
-    if (!user) return '';
-    
-    if (isAdmin) {
-      return 'Business Owner';
-    }
-    return user.role === 'CUSTOMER' ? 'Customer' : user.role;
-  };
-
   const closeMobileMenus = () => {
     setShowMobileMenu(false);
     setShowMobileSearch(false);
-    setShowLoginDropdown(false);
   };
 
   const handleAdminPortalClick = () => {
@@ -94,13 +80,13 @@ const Navbar = () => {
             </div>
           </form>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation - Only Business Owner Login */}
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-4">
                 <div className="text-right">
                   <div className="text-gray-700 font-medium">Hi, {user.name}</div>
-                  <div className="text-xs text-gray-500">{getRoleDisplay()}</div>
+                  <div className="text-xs text-gray-500">Business Owner</div>
                 </div>
                 {isAdmin && (
                   <Link
@@ -118,34 +104,12 @@ const Navbar = () => {
                 </button>
               </div>
             ) : (
-              <div className="relative">
-                <button
-                  onClick={() => setShowLoginDropdown(!showLoginDropdown)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-1"
-                >
-                  <span>Login</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                
-                {showLoginDropdown && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border">
-                    <button
-                      onClick={() => handleLogin('customer')}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      Login as Customer
-                    </button>
-                    <button
-                      onClick={() => handleLogin('admin')}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      Login as Business Owner
-                    </button>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={handleBusinessOwnerLogin}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Business Owner Login
+              </button>
             )}
           </div>
 
@@ -173,7 +137,6 @@ const Navbar = () => {
                 e.stopPropagation();
                 setShowMobileMenu(!showMobileMenu);
                 setShowMobileSearch(false);
-                setShowLoginDropdown(false);
               }}
               className="p-2 text-gray-600 hover:text-gray-800"
             >
@@ -214,7 +177,7 @@ const Navbar = () => {
           </div>
         )}
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu - Only Business Owner Options */}
         {showMobileMenu && (
           <div className="md:hidden border-t bg-white relative z-50">
             <div className="px-4 pt-4 pb-4 space-y-3">
@@ -222,29 +185,19 @@ const Navbar = () => {
                 <>
                   <div className="border-b pb-3">
                     <div className="text-gray-700 font-medium">Hi, {user.name}</div>
-                    <div className="text-sm text-gray-500">{getRoleDisplay()}</div>
+                    <div className="text-sm text-gray-500">Business Owner</div>
                     <div className="text-xs text-gray-400 mt-1">{user.email}</div>
                   </div>
                   {isAdmin && (
                     <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Admin portal clicked');
-                        handleAdminPortalClick();
-                      }}
+                      onClick={handleAdminPortalClick}
                       className="block w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors text-center font-medium"
                     >
                       Business Portal
                     </button>
                   )}
                   <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('Logout clicked');
-                      handleLogout();
-                    }}
+                    onClick={handleLogout}
                     className="block w-full text-left text-red-600 hover:text-red-800 transition-colors px-4 py-3 rounded-lg hover:bg-red-50 border border-red-200"
                   >
                     Logout
@@ -252,28 +205,12 @@ const Navbar = () => {
                 </>
               ) : (
                 <div className="space-y-2">
-                  <div className="text-gray-600 text-sm mb-3">Please login to continue:</div>
+                  <div className="text-gray-600 text-sm mb-3">Business owners can login to manage their profiles:</div>
                   <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('Customer login clicked');
-                      handleLogin('customer');
-                    }}
+                    onClick={handleBusinessOwnerLogin}
                     className="block w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                   >
-                    Login as Customer
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('Admin login clicked');
-                      handleLogin('admin');
-                    }}
-                    className="block w-full border border-blue-600 text-blue-600 px-4 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium"
-                  >
-                    Login as Business Owner
+                    Business Owner Login
                   </button>
                 </div>
               )}
@@ -281,14 +218,6 @@ const Navbar = () => {
           </div>
         )}
       </div>
-
-      {/* Enhanced Backdrop - Only for desktop login dropdown */}
-      {showLoginDropdown && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={closeMobileMenus}
-        ></div>
-      )}
     </nav>
   );
 };

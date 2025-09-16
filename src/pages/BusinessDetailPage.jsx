@@ -14,7 +14,6 @@ const BusinessDetailPage = ({ businessIdentifier }) => {
   const navigate = useNavigate();
   const [business, setBusiness] = useState(null);
   const [reviews, setReviews] = useState([]);
-  const [hasReviewed, setHasReviewed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -72,40 +71,11 @@ const BusinessDetailPage = ({ businessIdentifier }) => {
         }
       }
 
-      // Fetch reviews using business ID
+      // Fetch reviews using business ID - Always fetch public reviews since customers don't need to login
       if (businessData && businessData.id) {
-        let reviewsResponse;
-        
-        // Check if user is admin/business owner and owns this business
-        if (user && user.role === 'ADMIN') {
-          try {
-            console.log('User is admin, trying to fetch admin reviews...');
-            reviewsResponse = await reviewService.getReviewsForBusinessOwner(businessData.id);
-            console.log('Successfully fetched admin reviews');
-          } catch (error) {
-            console.log('Failed to fetch admin reviews, falling back to public reviews:', error.message);
-            // Fallback to public reviews if admin access fails
-            reviewsResponse = await reviewService.getReviewsByBusiness(businessData.id);
-          }
-        } else {
-          console.log('User is not admin or not logged in, fetching public reviews');
-          reviewsResponse = await reviewService.getReviewsByBusiness(businessData.id);
-        }
-        
+        console.log('Fetching public reviews for business:', businessData.id);
+        const reviewsResponse = await reviewService.getReviewsByBusiness(businessData.id);
         setReviews(reviewsResponse.data);
-
-        // Check if user has already reviewed (only if logged in and not business owner viewing their own business)
-        if (user && user.role !== 'ADMIN') {
-          try {
-            const hasReviewedResponse = await reviewService.hasReviewedBusiness(businessData.id);
-            setHasReviewed(hasReviewedResponse.data);
-          } catch (error) {
-            console.log('Could not check review status');
-            setHasReviewed(false);
-          }
-        } else {
-          setHasReviewed(false);
-        }
       }
     } catch (error) {
       console.error('Failed to fetch business data:', error);
@@ -118,7 +88,7 @@ const BusinessDetailPage = ({ businessIdentifier }) => {
     } finally {
       setLoading(false);
     }
-  }, [businessIdentifier, user, location.pathname, navigate]);
+  }, [businessIdentifier, location.pathname, navigate]);
 
   useEffect(() => {
     fetchBusinessData();
@@ -137,11 +107,9 @@ const BusinessDetailPage = ({ businessIdentifier }) => {
     }, 1000); // Increased delay to ensure backend processing is complete
   };
 
-  const handleLoginRedirect = (role = 'customer') => {
+  const handleBusinessOwnerLogin = () => {
     const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
-    const currentUrl = window.location.href;
-    const returnUrl = encodeURIComponent(currentUrl);
-    window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=${role}&returnUrl=${returnUrl}`;
+    window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=admin`;
   };
 
   if (loading) {
@@ -305,7 +273,6 @@ const BusinessDetailPage = ({ businessIdentifier }) => {
                     <span>LinkedIn</span>
                   </a>
                 )}
-              
               </div>
             </div>
           </div>
@@ -313,62 +280,53 @@ const BusinessDetailPage = ({ businessIdentifier }) => {
 
         {/* Review Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Review Form or Login Prompt */}
+          {/* Review Form - Always show for all users */}
           <div>
-            {user ? (
-              // Check if user is business owner viewing their own business
-              user.role === 'ADMIN' ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-blue-800 mb-2">Business Owner View</h3>
-                  <p className="text-blue-700">You are viewing your business as the owner.</p>
-                  <p className="text-blue-600 text-sm mt-2">You can see all customer reviews below. Business owners cannot leave reviews on their own businesses.</p>
-                </div>
-              ) : hasReviewed ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-green-800 mb-2">Thank you!</h3>
-                  <p className="text-green-700">You have already reviewed this business.</p>
-                  <p className="text-green-600 text-sm mt-2">Your feedback helps other customers make informed decisions.</p>
-                </div>
-              ) : showReviewForm ? (
-                <ReviewForm 
-                  businessId={business.id} 
-                  business={business}
-                  onReviewSubmitted={handleReviewSubmitted} 
-                />
-              ) : (
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                  <h3 className="text-lg font-semibold mb-4">Share Your Experience</h3>
-                  <p className="text-gray-600 mb-4">Help others by leaving a review for this business.</p>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <p className="text-blue-800 text-sm">
-                      <strong>How it works:</strong> High ratings (4-5 stars) will redirect you to leave a Google review. 
-                      Lower ratings (1-3 stars) will show a feedback form to help the business improve.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowReviewForm(true)}
-                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  >
-                    Write a Review
-                  </button>
-                </div>
-              )
+            {/* Check if user is business owner viewing their own business */}
+            {user && user.role === 'ADMIN' && business.createdBy?.id === user.id ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-blue-800 mb-2">Business Owner View</h3>
+                <p className="text-blue-700">You are viewing your business as the owner.</p>
+                <p className="text-blue-600 text-sm mt-2">You can see all customer reviews below. Business owners cannot leave reviews on their own businesses.</p>
+              </div>
+            ) : showReviewForm ? (
+              <ReviewForm 
+                businessId={business.id} 
+                business={business}
+                onReviewSubmitted={handleReviewSubmitted} 
+              />
             ) : (
               <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="text-lg font-semibold mb-4">Leave a Review</h3>
-                <p className="text-gray-600 mb-4">Please log in to leave a review for this business.</p>
-                <div className="space-y-3">
-                  <button
-                    onClick={() => handleLoginRedirect('customer')}
-                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  >
-                    Login to Review
-                  </button>
-                
+                <h3 className="text-lg font-semibold mb-4">Share Your Experience</h3>
+                <p className="text-gray-600 mb-4">Help others by leaving a review for this business.</p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p className="text-blue-800 text-sm">
+                    <strong>How it works:</strong> High ratings (4-5 stars) will redirect you to leave a Google review. 
+                    Lower ratings (1-3 stars) will show a feedback form to help the business improve.
+                  </p>
+                  <p className="text-blue-700 text-sm mt-2">
+                    <strong>No account needed!</strong> You can review as a guest or provide your contact information.
+                  </p>
                 </div>
-                <p className="text-xs text-gray-500 mt-3 text-center">
-                  You can view business details without logging in, but an account is required to leave reviews.
-                </p>
+                <button
+                  onClick={() => setShowReviewForm(true)}
+                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Write a Review
+                </button>
+                
+                {/* Business Owner Login Option */}
+                {!user && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-600 mb-2">Are you the business owner?</p>
+                    <button
+                      onClick={handleBusinessOwnerLogin}
+                      className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                    >
+                      Login to Manage Your Business
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

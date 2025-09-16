@@ -30,7 +30,17 @@ const ReviewCard = ({ review }) => {
   };
 
   const getCustomerName = () => {
-    // Enhanced customer name logic
+    // Enhanced customer name logic for anonymous reviews
+    if (review.isAnonymous) {
+      return 'Anonymous Customer';
+    }
+    
+    // Check if there's customer info directly on the review (for anonymous reviews with name)
+    if (review.customerName && review.customerName.trim()) {
+      return review.customerName;
+    }
+
+    // Check if there's a customer object (for logged-in users)
     if (review.customer) {
       if (review.customer.name && review.customer.name.trim()) {
         return review.customer.name;
@@ -42,6 +52,12 @@ const ReviewCard = ({ review }) => {
       }
     }
     
+    // Check if there's a customer email directly on the review
+    if (review.customerEmail && review.customerEmail.trim()) {
+      const emailPart = review.customerEmail.split('@')[0];
+      return emailPart.charAt(0).toUpperCase() + emailPart.slice(1);
+    }
+    
     // Fallback to anonymous
     return 'Anonymous Customer';
   };
@@ -51,6 +67,9 @@ const ReviewCard = ({ review }) => {
   console.log('ReviewCard - customer object:', review.customer);
   console.log('ReviewCard - customer name:', review.customer?.name);
   console.log('ReviewCard - customer email:', review.customer?.email);
+  console.log('ReviewCard - direct customer name:', review.customerName);
+  console.log('ReviewCard - direct customer email:', review.customerEmail);
+  console.log('ReviewCard - is anonymous:', review.isAnonymous);
   console.log('ReviewCard - createdAt (raw):', review.createdAt);
 
   return (
@@ -71,7 +90,11 @@ const ReviewCard = ({ review }) => {
         <p className="text-gray-800 font-medium text-sm">
           {getCustomerName()}
         </p>
-      
+        {review.isAnonymous && (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600 mt-1">
+            Anonymous Review
+          </span>
+        )}
       </div>
       
       {review.comment && review.comment.trim() && (

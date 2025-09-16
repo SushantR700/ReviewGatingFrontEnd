@@ -43,6 +43,32 @@ export const reviewService = {
       throw error;
     });
   },
+
+  // NEW: Create review without authentication (anonymous)
+  createReviewAnonymous: (businessId, reviewData) => {
+    console.log('Creating anonymous review for business:', businessId, 'with data:', reviewData);
+    
+    // Validate data before sending
+    if (!reviewData.rating || reviewData.rating < 1 || reviewData.rating > 5) {
+      throw new Error('Rating must be between 1 and 5');
+    }
+
+    // Clean the review data
+    const cleanedData = {
+      rating: parseInt(reviewData.rating),
+      comment: reviewData.comment || '',
+      customerName: reviewData.isAnonymous ? '' : (reviewData.customerName || ''),
+      customerEmail: reviewData.isAnonymous ? '' : (reviewData.customerEmail || ''),
+      customerPhone: reviewData.isAnonymous ? '' : (reviewData.customerPhone || ''),
+      isAnonymous: Boolean(reviewData.isAnonymous)
+    };
+    
+    return api.post(`/api/reviews/anonymous/business/${businessId}`, cleanedData).catch(error => {
+      console.error('Error creating anonymous review:', error);
+      console.error('Error response:', error.response?.data);
+      throw error;
+    });
+  },
   
   updateReview: (reviewId, reviewData) => {
     console.log('Updating review:', reviewId, 'with data:', reviewData);
