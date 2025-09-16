@@ -27,6 +27,17 @@ const Navbar = () => {
     setShowMobileMenu(false);
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force logout even if there's an error
+      window.location.href = '/';
+    }
+    setShowMobileMenu(false);
+  };
+
   const getRoleDisplay = () => {
     if (!user) return '';
     
@@ -40,6 +51,11 @@ const Navbar = () => {
     setShowMobileMenu(false);
     setShowMobileSearch(false);
     setShowLoginDropdown(false);
+  };
+
+  const handleAdminPortalClick = () => {
+    navigate('/admin');
+    closeMobileMenus();
   };
 
   return (
@@ -135,7 +151,9 @@ const Navbar = () => {
           <div className="flex md:hidden items-center space-x-2">
             {/* Mobile Search Button */}
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setShowMobileSearch(!showMobileSearch);
                 setShowMobileMenu(false);
               }}
@@ -148,9 +166,12 @@ const Navbar = () => {
 
             {/* Mobile Menu Button */}
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setShowMobileMenu(!showMobileMenu);
                 setShowMobileSearch(false);
+                setShowLoginDropdown(false);
               }}
               className="p-2 text-gray-600 hover:text-gray-800"
             >
@@ -191,45 +212,63 @@ const Navbar = () => {
           </div>
         )}
 
-        {/* Mobile Menu */}
+        {/* FIXED: Mobile Menu */}
         {showMobileMenu && (
-          <div className="md:hidden border-t bg-white">
+          <div className="md:hidden border-t bg-white relative z-50">
             <div className="px-4 pt-4 pb-4 space-y-3">
               {user ? (
                 <>
                   <div className="border-b pb-3">
                     <div className="text-gray-700 font-medium">Hi, {user.name}</div>
                     <div className="text-sm text-gray-500">{getRoleDisplay()}</div>
+                    <div className="text-xs text-gray-400 mt-1">{user.email}</div>
                   </div>
                   {isAdmin && (
-                    <Link
-                      to="/admin"
-                      onClick={closeMobileMenus}
-                      className="block bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors text-center font-medium"
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Admin portal clicked');
+                        handleAdminPortalClick();
+                      }}
+                      className="block w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors text-center font-medium"
                     >
                       Business Portal
-                    </Link>
+                    </button>
                   )}
                   <button
-                    onClick={() => {
-                      logout();
-                      closeMobileMenus();
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Logout clicked');
+                      handleLogout();
                     }}
-                    className="block w-full text-left text-gray-600 hover:text-gray-800 transition-colors px-4 py-3 rounded-lg hover:bg-gray-100"
+                    className="block w-full text-left text-red-600 hover:text-red-800 transition-colors px-4 py-3 rounded-lg hover:bg-red-50 border border-red-200"
                   >
                     Logout
                   </button>
                 </>
               ) : (
                 <div className="space-y-2">
+                  <div className="text-gray-600 text-sm mb-3">Please login to continue:</div>
                   <button
-                    onClick={() => handleLogin('customer')}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Customer login clicked');
+                      handleLogin('customer');
+                    }}
                     className="block w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                   >
                     Login as Customer
                   </button>
                   <button
-                    onClick={() => handleLogin('admin')}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Admin login clicked');
+                      handleLogin('admin');
+                    }}
                     className="block w-full border border-blue-600 text-blue-600 px-4 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium"
                   >
                     Login as Business Owner
@@ -241,10 +280,10 @@ const Navbar = () => {
         )}
       </div>
 
-      {/* Backdrop to close dropdowns */}
-      {(showLoginDropdown || showMobileMenu || showMobileSearch) && (
+      {/* Enhanced Backdrop - Only for desktop login dropdown */}
+      {showLoginDropdown && (
         <div 
-          className="fixed inset-0 z-40 md:hidden" 
+          className="fixed inset-0 z-40" 
           onClick={closeMobileMenus}
         ></div>
       )}

@@ -30,14 +30,27 @@ const ReviewCard = ({ review }) => {
   };
 
   const getCustomerName = () => {
-    if (review.customer?.name) {
-      return review.customer.name;
+    // Enhanced customer name logic
+    if (review.customer) {
+      if (review.customer.name && review.customer.name.trim()) {
+        return review.customer.name;
+      }
+      if (review.customer.email) {
+        // If no name but email exists, show first part of email
+        const emailPart = review.customer.email.split('@')[0];
+        return emailPart.charAt(0).toUpperCase() + emailPart.slice(1);
+      }
     }
+    
+    // Fallback to anonymous
     return 'Anonymous Customer';
   };
 
-  // Debug logging
+  // Debug logging - Enhanced
   console.log('ReviewCard - review object:', review);
+  console.log('ReviewCard - customer object:', review.customer);
+  console.log('ReviewCard - customer name:', review.customer?.name);
+  console.log('ReviewCard - customer email:', review.customer?.email);
   console.log('ReviewCard - createdAt (raw):', review.createdAt);
 
   return (
@@ -58,6 +71,7 @@ const ReviewCard = ({ review }) => {
         <p className="text-gray-800 font-medium text-sm">
           {getCustomerName()}
         </p>
+      
       </div>
       
       {review.comment && review.comment.trim() && (

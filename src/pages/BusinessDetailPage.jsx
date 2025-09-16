@@ -55,12 +55,17 @@ const BusinessDetailPage = () => {
     fetchBusinessData();
   }, [fetchBusinessData]);
 
+  // UPDATED: Enhanced review submission handler with better refresh logic
   const handleReviewSubmitted = () => {
+    console.log('=== Review/Feedback submitted, refreshing data ===');
     setShowReviewForm(false);
+    
     // Force a complete refresh of all data to show the new review
+    // Use a longer delay to ensure all backend processing is complete
     setTimeout(() => {
+      console.log('Refreshing business data after review submission...');
       fetchBusinessData();
-    }, 500); // Small delay to ensure backend has processed the review
+    }, 1000); // Increased delay to ensure backend processing is complete
   };
 
   const handleLoginRedirect = (role = 'customer') => {

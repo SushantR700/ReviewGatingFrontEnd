@@ -9,21 +9,41 @@ const ReviewForm = ({ businessId, business, onReviewSubmitted }) => {
   const [submitting, setSubmitting] = useState(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [reviewResult, setReviewResult] = useState(null);
+  const [error, setError] = useState('');
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
+    
+    // Clear any previous errors
+    setError('');
+    
     if (rating === 0) {
-      alert('Please select a rating');
+      setError('Please select a rating');
+      return;
+    }
+
+    // Prevent double submission
+    if (submitting) {
+      console.log('Already submitting, ignoring duplicate request');
       return;
     }
 
     setSubmitting(true);
+    
     try {
+      console.log('=== Submitting Review ===');
+      console.log('Business ID:', businessId);
+      console.log('Rating:', rating);
+      console.log('Comment:', comment);
+
       const response = await reviewService.createReview(businessId, { rating, comment });
+      console.log('Review response:', response);
+      
       setReviewResult(response.data);
       
-      // FIXED LOGIC: High ratings (4-5) should redirect to Google
-      if (rating >= 4) {
+      // Handle the response based on backend logic
+      if (response.data.shouldRedirectToGoogle) {
+        // High ratings (4-5) redirect to Google
         alert('Thank you for your positive review! You will be redirected to leave a Google review.');
         
         // Use business Google Review URL if available, otherwise generic Google search
@@ -32,17 +52,31 @@ const ReviewForm = ({ businessId, business, onReviewSubmitted }) => {
         
         window.open(googleUrl, '_blank');
         onReviewSubmitted();
-      } 
-      // Low ratings (1-3) should show feedback form
-      else if (rating <= 3) {
+      } else if (response.data.shouldShowFeedbackForm) {
+        // Low ratings (1-3) show feedback form
+        console.log('Showing feedback form for low rating');
         setShowFeedbackForm(true);
       } else {
-        // Just in case, default behavior
+        // Default case - just finish
         onReviewSubmitted();
       }
     } catch (error) {
-      const errorMessage = error.response?.data || 'Failed to submit review. Please try again.';
-      alert(errorMessage);
+      console.error('Error submitting review:', error);
+      
+      let errorMessage = 'Failed to submit review. Please try again.';
+      
+      if (error.response?.data) {
+        // If the backend returned a specific error message
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -53,12 +87,17 @@ const ReviewForm = ({ businessId, business, onReviewSubmitted }) => {
     onReviewSubmitted();
   };
 
+  const handleSkipFeedback = () => {
+    setShowFeedbackForm(false);
+    onReviewSubmitted();
+  };
+
   if (showFeedbackForm) {
     return (
       <FeedbackForm 
         reviewId={reviewResult?.review?.id} 
         onFeedbackSubmitted={handleFeedbackSubmitted}
-        onSkip={handleFeedbackSubmitted}
+        onSkip={handleSkipFeedback}
       />
     );
   }
@@ -66,6 +105,13 @@ const ReviewForm = ({ businessId, business, onReviewSubmitted }) => {
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
       <h3 className="text-lg font-semibold mb-4">Leave a Review</h3>
+      
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-700 text-sm">{error}</p>
+        </div>
+      )}
+      
       <form onSubmit={handleSubmitReview} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Your Rating</label>
@@ -85,6 +131,7 @@ const ReviewForm = ({ businessId, business, onReviewSubmitted }) => {
             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             rows="4"
             placeholder="Tell others about your experience..."
+            disabled={submitting}
           />
         </div>
 
