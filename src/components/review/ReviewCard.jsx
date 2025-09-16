@@ -1,20 +1,42 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import StarRating from '../common/StarRating';
 
-const ReviewCard = ({ review }) => {
+const ReviewCard = ({ review, showFeedback = false }) => {
+  const [feedback, setFeedback] = useState(null);
+
+  // Only fetch feedback if we're in admin context and it's a low rating
+  useEffect(() => {
+    if (showFeedback && review.rating <= 3) {
+      fetchFeedback();
+    }
+  }, [review.id, review.rating, showFeedback]);
+
+  const fetchFeedback = async () => {
+    try {
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+      const response = await fetch(`${baseUrl}/api/feedback/review/${review.id}`, {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const feedbackData = await response.json();
+        setFeedback(feedbackData);
+      }
+    } catch (error) {
+      console.error('Error fetching feedback:', error);
+      // Feedback might not exist, which is okay
+    }
+  };
+
   const getDisplayDate = (dateString) => {
     if (!dateString) return 'Date not available';
     
     try {
-      // Parse the ISO date string from backend (2025-09-15T20:28:51)
       const date = new Date(dateString);
-      
-      // Check if date is valid
       if (isNaN(date.getTime())) {
-        return dateString; // Return original if parsing fails
+        return dateString;
       }
       
-      // Format to readable date and time
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -25,52 +47,36 @@ const ReviewCard = ({ review }) => {
       });
     } catch (error) {
       console.error('Error formatting date:', error);
-      return dateString; // Return original if error occurs
+      return dateString;
     }
   };
 
   const getCustomerName = () => {
-    // Enhanced customer name logic for anonymous reviews
     if (review.isAnonymous) {
       return 'Anonymous Customer';
     }
     
-    // Check if there's customer info directly on the review (for anonymous reviews with name)
     if (review.customerName && review.customerName.trim()) {
       return review.customerName;
     }
 
-    // Check if there's a customer object (for logged-in users)
     if (review.customer) {
       if (review.customer.name && review.customer.name.trim()) {
         return review.customer.name;
       }
       if (review.customer.email) {
-        // If no name but email exists, show first part of email
         const emailPart = review.customer.email.split('@')[0];
         return emailPart.charAt(0).toUpperCase() + emailPart.slice(1);
       }
     }
     
-    // Check if there's a customer email directly on the review
     if (review.customerEmail && review.customerEmail.trim()) {
       const emailPart = review.customerEmail.split('@')[0];
       return emailPart.charAt(0).toUpperCase() + emailPart.slice(1);
     }
     
-    // Fallback to anonymous
     return 'Anonymous Customer';
   };
-
-  // Debug logging - Enhanced
-  console.log('ReviewCard - review object:', review);
-  console.log('ReviewCard - customer object:', review.customer);
-  console.log('ReviewCard - customer name:', review.customer?.name);
-  console.log('ReviewCard - customer email:', review.customer?.email);
-  console.log('ReviewCard - direct customer name:', review.customerName);
-  console.log('ReviewCard - direct customer email:', review.customerEmail);
-  console.log('ReviewCard - is anonymous:', review.isAnonymous);
-  console.log('ReviewCard - createdAt (raw):', review.createdAt);
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
@@ -102,6 +108,60 @@ const ReviewCard = ({ review }) => {
           <p className="text-gray-600 text-sm leading-relaxed">
             {review.comment}
           </p>
+        </div>
+      )}
+
+      {/* Show additional feedback ONLY if showFeedback prop is true (admin context) */}
+      {showFeedback && feedback && (
+        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="text-sm font-semibold text-blue-800 mb-2">Additional Feedback:</h4>
+          
+          {feedback.feedbackText && (
+            <div className="mb-2">
+              <p className="text-sm text-blue-700">
+                <strong>Comments:</strong> "{feedback.feedbackText}"
+              </p>
+            </div>
+          )}
+
+          {/* Show detailed ratings if any exist */}
+          {(feedback.serviceQuality || feedback.staffBehavior || feedback.cleanliness || 
+            feedback.valueForMoney || feedback.overallExperience) && (
+            <div className="mb-2">
+              <p className="text-xs font-medium text-blue-800 mb-1">Detailed Ratings:</p>
+              <div className="text-xs text-blue-700 space-y-1">
+                {feedback.serviceQuality && (
+                  <div>Service Quality: <span className="font-medium capitalize">{feedback.serviceQuality}</span></div>
+                )}
+                {feedback.staffBehavior && (
+                  <div>Staff Behavior: <span className="font-medium capitalize">{feedback.staffBehavior}</span></div>
+                )}
+                {feedback.cleanliness && (
+                  <div>Cleanliness: <span className="font-medium capitalize">{feedback.cleanliness}</span></div>
+                )}
+                {feedback.valueForMoney && (
+                  <div>Value for Money: <span className="font-medium capitalize">{feedback.valueForMoney}</span></div>
+                )}
+                {feedback.overallExperience && (
+                  <div>Overall Experience: <span className="font-medium capitalize">{feedback.overallExperience}</span></div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {feedback.suggestions && (
+            <div className="mb-2">
+              <p className="text-sm text-blue-700">
+                <strong>Suggestions:</strong> "{feedback.suggestions}"
+              </p>
+            </div>
+          )}
+
+          {feedback.wantsFollowup && (
+            <div className="text-xs text-blue-600 font-medium">
+              ⚠️ Customer requested follow-up
+            </div>
+          )}
         </div>
       )}
       

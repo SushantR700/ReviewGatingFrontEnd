@@ -278,7 +278,7 @@ const AdminPortal = () => {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Reviews Management
+                  Reviews & Feedback
                 </button>
               </nav>
             </div>
@@ -330,7 +330,6 @@ const AdminPortal = () => {
                           Delete
                         </button>
                       </div>
-                     
                     </div>
                   </div>
                 ))}
@@ -395,7 +394,11 @@ const AdminPortal = () => {
                       ) : (
                         <div className="space-y-4">
                           {businessReviews.map((review) => (
-                            <ReviewCard key={review.id} review={review} />
+                            <ReviewCard 
+                              key={review.id} 
+                              review={review} 
+                              showFeedback={true} 
+                            />
                           ))}
                         </div>
                       )}
@@ -404,7 +407,7 @@ const AdminPortal = () => {
                     <div className="bg-white rounded-lg shadow-md p-6 text-center">
                       <div className="text-gray-400 text-4xl mb-3">👈</div>
                       <h4 className="font-medium text-gray-900 mb-2">Select a Business</h4>
-                      <p className="text-gray-600 text-sm">Choose a business from the left to view its reviews.</p>
+                      <p className="text-gray-600 text-sm">Choose a business from the left to view its reviews and feedback.</p>
                     </div>
                   )}
                 </div>
