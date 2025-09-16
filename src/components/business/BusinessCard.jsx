@@ -5,15 +5,29 @@ import StarRating from '../common/StarRating';
 const BusinessCard = ({ business }) => {
   const navigate = useNavigate();
 
+  // Function to create URL-friendly business name (slug)
+  const createBusinessSlug = (businessName) => {
+    if (!businessName) return '';
+    return businessName
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .trim()
+      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+  };
+
   const handleClick = (e) => {
     e.preventDefault();
     console.log('=== BUSINESS CARD CLICK ===');
     console.log('Business:', business);
     
-    if (business?.id) {
-      navigate(`/business/${business.id}`);
+    if (business?.businessName) {
+      const businessSlug = createBusinessSlug(business.businessName);
+      console.log('Generated slug:', businessSlug);
+      navigate(`/${businessSlug}`);
     } else {
-      console.error('No business ID available');
+      console.error('No business name available');
     }
   };
 
@@ -87,8 +101,6 @@ const BusinessCard = ({ business }) => {
         >
           View Details
         </button>
-        
-       
       </div>
     </div>
   );

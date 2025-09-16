@@ -24,6 +24,15 @@ export const businessService = {
       throw error;
     });
   },
+
+  // NEW: Get business by name (slug)
+  getBusinessByName: (businessNameSlug) => {
+    console.log('Fetching business by name slug:', businessNameSlug);
+    return api.get(`/api/businesses/name/${encodeURIComponent(businessNameSlug)}`).catch(error => {
+      console.error('Error fetching business by name:', error);
+      throw error;
+    });
+  },
   
   getBusinessImage: (id) => `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/businesses/${id}/image`,
   

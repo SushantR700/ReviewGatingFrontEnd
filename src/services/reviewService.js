@@ -8,6 +8,15 @@ export const reviewService = {
       throw error;
     });
   },
+
+  // NEW: Get reviews for business owner (admin access)
+  getReviewsForBusinessOwner: (businessId) => {
+    console.log('Fetching reviews for business owner, business:', businessId);
+    return api.get(`/api/admin/reviews/business/${businessId}`).catch(error => {
+      console.error('Error fetching reviews for business owner:', error);
+      throw error;
+    });
+  },
   
   hasReviewedBusiness: (businessId) => {
     console.log('Checking if user has reviewed business:', businessId);

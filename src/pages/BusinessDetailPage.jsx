@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import Navbar from '../components/common/Navbar';
+import { useLocation, useNavigate } from 'react-router-dom';
 import StarRating from '../components/common/StarRating';
 import ReviewForm from '../components/review/ReviewForm';
 import ReviewCard from '../components/review/ReviewCard';
@@ -9,9 +8,10 @@ import { useAuth } from '../context/AuthContext';
 import { businessService } from '../services/businessService';
 import { reviewService } from '../services/reviewService';
 
-const BusinessDetailPage = () => {
-  const { id } = useParams();
+const BusinessDetailPage = ({ businessIdentifier }) => {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [business, setBusiness] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [hasReviewed, setHasReviewed] = useState(false);
@@ -19,43 +19,112 @@ const BusinessDetailPage = () => {
   const [error, setError] = useState(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
 
+  // Helper function to check if identifier is numeric (ID) or text (business name)
+  const isNumericId = (identifier) => {
+    return /^\d+$/.test(identifier);
+  };
+
+  // Helper function to create business slug from name
+  const createBusinessSlug = (businessName) => {
+    if (!businessName) return '';
+    return businessName
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .trim()
+      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+  };
+
   const fetchBusinessData = useCallback(async () => {
+    if (!businessIdentifier) {
+      setError('No business identifier provided');
+      setLoading(false);
+      return;
+    }
+
     try {
       setError(null);
+      console.log('Fetching business data for identifier:', businessIdentifier);
       
-      // Fetch business details (accessible to everyone)
-      const businessResponse = await businessService.getBusinessById(id);
-      setBusiness(businessResponse.data);
+      let businessResponse;
+      
+      // Check if identifier is a numeric ID or business name
+      if (isNumericId(businessIdentifier)) {
+        console.log('Using ID-based lookup');
+        businessResponse = await businessService.getBusinessById(businessIdentifier);
+      } else {
+        console.log('Using name-based lookup');
+        businessResponse = await businessService.getBusinessByName(businessIdentifier);
+      }
 
-      // Fetch reviews (accessible to everyone)
-      const reviewsResponse = await reviewService.getReviewsByBusiness(id);
-      setReviews(reviewsResponse.data);
+      const businessData = businessResponse.data;
+      setBusiness(businessData);
 
-      // Check if user has already reviewed (only if logged in)
-      if (user) {
-        try {
-          const hasReviewedResponse = await reviewService.hasReviewedBusiness(id);
-          setHasReviewed(hasReviewedResponse.data);
-        } catch (error) {
-          console.log('Could not check review status (user might not be logged in)');
+      // Update URL to use correct business name slug if we found the business
+      if (businessData && businessData.businessName) {
+        const correctSlug = createBusinessSlug(businessData.businessName);
+        const currentPath = location.pathname.substring(1); // Remove leading slash
+        
+        if (currentPath !== correctSlug) {
+          console.log('Updating URL from', currentPath, 'to', correctSlug);
+          navigate(`/${correctSlug}`, { replace: true });
+        }
+      }
+
+      // Fetch reviews using business ID
+      if (businessData && businessData.id) {
+        let reviewsResponse;
+        
+        // Check if user is admin/business owner and owns this business
+        if (user && user.role === 'ADMIN') {
+          try {
+            console.log('User is admin, trying to fetch admin reviews...');
+            reviewsResponse = await reviewService.getReviewsForBusinessOwner(businessData.id);
+            console.log('Successfully fetched admin reviews');
+          } catch (error) {
+            console.log('Failed to fetch admin reviews, falling back to public reviews:', error.message);
+            // Fallback to public reviews if admin access fails
+            reviewsResponse = await reviewService.getReviewsByBusiness(businessData.id);
+          }
+        } else {
+          console.log('User is not admin or not logged in, fetching public reviews');
+          reviewsResponse = await reviewService.getReviewsByBusiness(businessData.id);
+        }
+        
+        setReviews(reviewsResponse.data);
+
+        // Check if user has already reviewed (only if logged in and not business owner viewing their own business)
+        if (user && user.role !== 'ADMIN') {
+          try {
+            const hasReviewedResponse = await reviewService.hasReviewedBusiness(businessData.id);
+            setHasReviewed(hasReviewedResponse.data);
+          } catch (error) {
+            console.log('Could not check review status');
+            setHasReviewed(false);
+          }
+        } else {
           setHasReviewed(false);
         }
-      } else {
-        setHasReviewed(false);
       }
     } catch (error) {
       console.error('Failed to fetch business data:', error);
-      setError('Failed to load business information. Please try again.');
+      
+      if (error.response?.status === 404) {
+        setError('Business not found. The business you\'re looking for doesn\'t exist or may have been removed.');
+      } else {
+        setError('Failed to load business information. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [id, user]);
+  }, [businessIdentifier, user, location.pathname, navigate]);
 
   useEffect(() => {
     fetchBusinessData();
   }, [fetchBusinessData]);
 
-  // UPDATED: Enhanced review submission handler with better refresh logic
+  // Enhanced review submission handler with better refresh logic
   const handleReviewSubmitted = () => {
     console.log('=== Review/Feedback submitted, refreshing data ===');
     setShowReviewForm(false);
@@ -70,13 +139,14 @@ const BusinessDetailPage = () => {
 
   const handleLoginRedirect = (role = 'customer') => {
     const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
-    window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=${role}`;
+    const currentUrl = window.location.href;
+    const returnUrl = encodeURIComponent(currentUrl);
+    window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=${role}&returnUrl=${returnUrl}`;
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <LoadingSpinner />
       </div>
     );
@@ -85,17 +155,24 @@ const BusinessDetailPage = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
             <p className="text-red-700 mb-4">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Try Again
-            </button>
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+              >
+                Back to Home
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -105,16 +182,15 @@ const BusinessDetailPage = () => {
   if (!business) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Business not found</h2>
             <p className="text-gray-600 mb-4">The business you're looking for doesn't exist or has been removed.</p>
             <button
-              onClick={() => window.history.back()}
+              onClick={() => navigate('/')}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             >
-              Go Back
+              Browse All Businesses
             </button>
           </div>
         </div>
@@ -124,13 +200,12 @@ const BusinessDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Business Header */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
           <div className="md:flex">
             <div className="md:w-1/3">
-              {business.imageData ? (
+              {business.imageName ? (
                 <img
                   src={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/businesses/${business.id}/image`}
                   alt={business.businessName}
@@ -142,7 +217,7 @@ const BusinessDetailPage = () => {
                 />
               ) : null}
               <div 
-                className={`w-full h-64 md:h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center ${business.imageData ? 'hidden' : 'flex'}`}
+                className={`w-full h-64 md:h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center ${business.imageName ? 'hidden' : 'flex'}`}
               >
                 <span className="text-white text-6xl font-bold">
                   {business.businessName.charAt(0).toUpperCase()}
@@ -230,17 +305,7 @@ const BusinessDetailPage = () => {
                     <span>LinkedIn</span>
                   </a>
                 )}
-                {business.googleReviewUrl && (
-                  <a
-                    href={business.googleReviewUrl.startsWith('http') ? business.googleReviewUrl : `https://${business.googleReviewUrl}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-red-100 hover:bg-red-200 px-3 py-1 rounded-lg text-sm transition-colors inline-flex items-center space-x-1"
-                  >
-                    <span>🔗</span>
-                    <span>Google Reviews</span>
-                  </a>
-                )}
+              
               </div>
             </div>
           </div>
@@ -251,7 +316,14 @@ const BusinessDetailPage = () => {
           {/* Review Form or Login Prompt */}
           <div>
             {user ? (
-              hasReviewed ? (
+              // Check if user is business owner viewing their own business
+              user.role === 'ADMIN' ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-2">Business Owner View</h3>
+                  <p className="text-blue-700">You are viewing your business as the owner.</p>
+                  <p className="text-blue-600 text-sm mt-2">You can see all customer reviews below. Business owners cannot leave reviews on their own businesses.</p>
+                </div>
+              ) : hasReviewed ? (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-green-800 mb-2">Thank you!</h3>
                   <p className="text-green-700">You have already reviewed this business.</p>
@@ -259,7 +331,7 @@ const BusinessDetailPage = () => {
                 </div>
               ) : showReviewForm ? (
                 <ReviewForm 
-                  businessId={id} 
+                  businessId={business.id} 
                   business={business}
                   onReviewSubmitted={handleReviewSubmitted} 
                 />
@@ -290,14 +362,9 @@ const BusinessDetailPage = () => {
                     onClick={() => handleLoginRedirect('customer')}
                     className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                   >
-                    Login as Customer
+                    Login to Review
                   </button>
-                  <button
-                    onClick={() => handleLoginRedirect('admin')}
-                    className="w-full bg-gray-600 text-white py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors font-medium"
-                  >
-                    Login as Business Owner
-                  </button>
+                
                 </div>
                 <p className="text-xs text-gray-500 mt-3 text-center">
                   You can view business details without logging in, but an account is required to leave reviews.

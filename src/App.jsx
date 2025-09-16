@@ -43,24 +43,33 @@ const AuthRedirect = () => {
   return null;
 };
 
-// Simple test page
-const TestPage = () => {
-  const { id } = useLocation().pathname.split('/').pop();
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-4">Test Business Page</h1>
-        <p>Business ID: {id}</p>
-        <p>This is a simple test page to verify routing works.</p>
-        <button 
-          onClick={() => window.location.href = '/'}
-          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          Back to Home
-        </button>
-      </div>
-    </div>
-  );
+// Business Detail Route Component
+const BusinessDetailRoute = () => {
+  const location = useLocation();
+  const pathname = location.pathname;
+  
+  // Extract business identifier from URL
+  // Could be either ID (for backward compatibility) or business name slug
+  const businessIdentifier = pathname.substring(1); // Remove leading slash
+  
+  console.log('BusinessDetailRoute - pathname:', pathname);
+  console.log('BusinessDetailRoute - identifier:', businessIdentifier);
+  
+  return <BusinessDetailPage businessIdentifier={businessIdentifier} />;
+};
+
+// Route Guard Component to handle business name routing
+const BusinessRouteGuard = () => {
+  const location = useLocation();
+  const pathname = location.pathname;
+  
+  // Skip routing logic for admin and other known routes
+  if (pathname === '/admin' || pathname === '/' || pathname.startsWith('/admin/')) {
+    return null;
+  }
+  
+  // For all other routes, treat as potential business names
+  return <BusinessDetailRoute />;
 };
 
 function AppContent() {
@@ -69,9 +78,10 @@ function AppContent() {
       <RouteLogger />
       <AuthRedirect />
       <Routes>
+        {/* Home page */}
         <Route path="/" element={<HomePage />} />
-        <Route path="/test/:id" element={<TestPage />} />
-        <Route path="/business/:id" element={<BusinessDetailPage />} />
+        
+        {/* Admin portal */}
         <Route 
           path="/admin" 
           element={
@@ -80,6 +90,9 @@ function AppContent() {
             </ProtectedRoute>
           } 
         />
+        
+        {/* Business detail pages - catch all non-admin routes */}
+        <Route path="/*" element={<BusinessRouteGuard />} />
       </Routes>
     </>
   );

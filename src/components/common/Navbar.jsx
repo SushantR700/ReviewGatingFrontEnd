@@ -22,7 +22,9 @@ const Navbar = () => {
 
   const handleLogin = (role = 'customer') => {
     const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
-    window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=${role}`;
+    const currentUrl = window.location.href;
+    const returnUrl = encodeURIComponent(currentUrl);
+    window.location.href = `${baseUrl}/login/oauth2/authorization/google?role=${role}&returnUrl=${returnUrl}`;
     setShowLoginDropdown(false);
     setShowMobileMenu(false);
   };
@@ -212,7 +214,7 @@ const Navbar = () => {
           </div>
         )}
 
-        {/* FIXED: Mobile Menu */}
+        {/* Mobile Menu */}
         {showMobileMenu && (
           <div className="md:hidden border-t bg-white relative z-50">
             <div className="px-4 pt-4 pb-4 space-y-3">
